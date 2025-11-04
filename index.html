@@ -149,8 +149,8 @@
                 }
             });
 
-            loadTable('assets/Street_lighting_incidents_in_the_last_30_days.geojson', 'lightTable', ['incident_reference', 'current_status']);
-            loadTable('assets/Fly-tipping_incidents_unresolved.geojson', 'flyTable', ['incident_reference', 'incident_category']);
+            loadTable('assets/Street_lighting_incidents_in_the_last_30_days.geojson', 'lightTable', ['ReferenceNumber', 'CategoryId']);
+            loadTable('assets/Fly-tipping_incidents_unresolved.geojson', 'flyTable', ['ReferenceNumber', 'CategoryId']);
         });
 
         function loadTable(file, tableId, fields) {
