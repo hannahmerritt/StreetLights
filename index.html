@@ -1,1 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>York Incident Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+            flex-direction: row;
+            align-items: stretch;
+        }
+
+        #map {
+            flex-grow: 1;
+        }
+
+        #side-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            overflow-y: auto;
+            padding: 15px;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 1024px) {
+            #side-panel {
+                display: none;
+            }
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        /* === Table styles === */
+        table {
+            border-collapse: collapse;
+            border-spacing: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        th {
+            cursor: pointer;
+            background-color: #eee;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id="map"></div>
+
+        <div id="side-panel">
+            <h2>York City Incidents</h2>
+            <p>This map shows recent street lighting and unresolved fly-tipping incidents in York, England.</p>
+
+            <h3>Street Lighting Incidents</h3>
+            <table id="lightTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('lightTable', 0)">Incident ID</th>
+                        <th onclick="sortTable('lightTable', 1)">Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+            <h3>Fly-Tipping Incidents</h3>
+            <table id="flyTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('flyTable', 0)">Incident ID</th>
+                        <th onclick="sortTable('flyTable', 1)">Category</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+   
+        mapboxgl.accessToken = 'pk.eyJ1IjoiaG1lcnJpdHQxMSIsImEiOiJjbWhqcHRpOWgxMjA1MmxwbjdqY2x2dzdiIn0.Y0OZ2_z34S1hWXsgpOP19A'; 
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/navigation-night-v1', 
+            center: [-1.08, 53.96], // York, UK
+            zoom: 12
+        });
+
+        map.on('load', () => {
+           
+            map.addSource('streetlighting', {
+                type: 'geojson',
+                data: 'assets/Street_lighting_incidents_in_the_last_30_days.geojson'
+            });
+
+            map.addLayer({
+                id: 'streetlighting-layer',
+                type: 'circle',
+                source: 'streetlighting',
+                paint: {
+                    'circle-radius': 5,
+                    'circle-color': '#FFD700',
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': '#333'
+                }
+            });
+
+            map.addSource('flytipping', {
+                type: 'geojson',
+                data: 'assets/Fly-tipping_incidents_unresolved.geojson'
+            });
+
+            map.addLayer({
+                id: 'flytipping-layer',
+                type: 'circle',
+                source: 'flytipping',
+                paint: {
+                    'circle-radius': 5,
+                    'circle-color': '#ff4c4c',
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': '#333'
+                }
+            });
+
+            loadTable('assets/Street_lighting_incidents_in_the_last_30_days.geojson', 'lightTable', ['incident_reference', 'current_status']);
+            loadTable('assets/Fly-tipping_incidents_unresolved.geojson', 'flyTable', ['incident_reference', 'incident_category']);
+        });
+
+        function loadTable(file, tableId, fields) {
+            fetch(file)
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.querySelector(`#${tableId} tbody`);
+                    data.features.forEach(f => {
+                        const row = tbody.insertRow();
+                        fields.forEach(field => {
+                            const cell = row.insertCell();
+                            cell.textContent = f.properties[field] || 'N/A';
+                        });
+                    });
+                });
+        }
+
+        // Sort tabel
+        function sortTable(tableId, n) {
+            const table = document.getElementById(tableId);
+            let switching = true;
+            let dir = "asc";
+            let switchcount = 0;
+
+            while (switching) {
+                switching = false;
+                const rows = table.rows;
+                for (let i = 1; i < (rows.length - 1); i++) {
+                    let shouldSwitch = false;
+                    const x = rows[i].getElementsByTagName("TD")[n];
+                    const y = rows[i + 1].getElementsByTagName("TD")[n];
+                    if (dir === "asc" && x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    } else if (dir === "desc" && x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+                if (shouldSwitch) {
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                    switchcount++;
+                } else if (switchcount === 0 && dir === "asc") {
+                    dir = "desc";
+                    switching = true;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
 
